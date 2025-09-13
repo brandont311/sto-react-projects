@@ -1,5 +1,13 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area, BarChart, Bar } from 'recharts';
+
+// Physical constants (defined outside component to avoid dependency issues)
+const c = 299792458;
+const inchesToMeters = 0.0254;
+const metersToInches = 39.3701;
+const pi = Math.PI;
+const curvonicConstant = 383.997935003;
+const elementaryCharge = 1.602176634e-19; // Coulombs
 
 const HarmonicTimeFieldSimulator = () => {
   const [temperature, setTemperature] = useState(77.87);
@@ -7,14 +15,6 @@ const HarmonicTimeFieldSimulator = () => {
   const [a4Frequency, setA4Frequency] = useState(417);
   const [rotationPeriod, setRotationPeriod] = useState(86400);
   const [viewMode, setViewMode] = useState('convergence');
-  const [isAnimating, setIsAnimating] = useState(false);
-
-  // Physical constants
-  const c = 299792458;
-  const inchesToMeters = 0.0254;
-  const metersToInches = 39.3701;
-  const pi = Math.PI;
-  const curvonicConstant = 383.997935003;
 
   // Calculate speed of sound
   const calculateSpeedOfSound = (tempF, humidity) => {

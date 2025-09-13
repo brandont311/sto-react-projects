@@ -5,7 +5,7 @@ const AmplitudeGeodeticSimulator = () => {
   const [frequency, setFrequency] = useState(5.8e14); // Hz (green light)
   const [curvatureRadius, setCurvatureRadius] = useState(1000); // km
   const [spacetimeDensity, setSpacetimeDensity] = useState(1.0);
-  const [observerDistance, setObserverDistance] = useState(1.0); // meters
+  const [_observerDistance, _setObserverDistance] = useState(1.0); // meters
   const [exposureTime, setExposureTime] = useState(0.1); // seconds
   const [tissueSensitivity, setTissueSensitivity] = useState(1.0);
   const [viewMode, setViewMode] = useState('geodesic_curvature');
@@ -21,10 +21,10 @@ const AmplitudeGeodeticSimulator = () => {
 
   // STO Framework constants
   const baseSequence = 297531864;
-  const energyConstant = 383.997935003;
-  const thermalBase = 319.6;
-  const mixingAngle = 7.5; // degrees
-  const rotationalGradient = 54.0; // degrees
+  const _energyConstant = 383.997935003;
+  const _thermalBase = 319.6;
+  const _mixingAngle = 7.5; // degrees
+  const _rotationalGradient = 54.0; // degrees
 
   // Animation effect
   useEffect(() => {
@@ -102,7 +102,7 @@ const AmplitudeGeodeticSimulator = () => {
     
     for (let i = 0; i < steps; i++) {
       const t = (i / steps) * 4 * Math.PI + animationTime;
-      const x = t;
+      const _x = t;
       
       // Flat geodesic (no curvature)
       const flatY = 0;

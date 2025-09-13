@@ -15,7 +15,7 @@ const PsionicFieldSimulator = () => {
   const [curvatureMode, setCurvatureMode] = useState('standard');
 
   // Generate network topology
-  const generateNetwork = (n, p, seed = 42) => {
+  const generateNetwork = (n, p, _seed = 42) => {
     const nodes = Array.from({ length: n }, (_, i) => i);
     const edges = [];
     
@@ -43,7 +43,7 @@ const PsionicFieldSimulator = () => {
   );
 
   // Simulation history
-  const [history, setHistory] = useState([]);
+  const [_history, setHistory] = useState([]);
   const [curvatureHistory, setCurvatureHistory] = useState([]);
 
   // Reset simulation
@@ -177,54 +177,53 @@ const PsionicFieldSimulator = () => {
     return { energy: newEnergy, tracker: newTracker };
   };
 
-  // Run single simulation step
-  const simulationStep = () => {
-    if (currentIteration >= iterations) {
-      setIsRunning(false);
-      return;
-    }
-    
-    // Apply phase slip
-    const newPhases = applyPhaseSlip(phases, beliefEnergy, network.edges, phaseSlipThreshold);
-    
-    // Update belief energy
-    const { energy: newEnergy, tracker: newTracker } = updateBeliefEnergy(
-      beliefEnergy, 
-      newPhases, 
-      network.edges, 
-      influenceTracker
-    );
-    
-    // Calculate system-wide curvature metrics
-    const totalCurvature = network.nodes.reduce((sum, node) => 
-      sum + calculateLocalCurvature(node, newEnergy, newPhases, network.edges), 0
-    );
-    
-    const avgEnergy = newEnergy.reduce((sum, e) => sum + e, 0) / networkSize;
-    const energyVariance = newEnergy.reduce((sum, e) => sum + (e - avgEnergy) ** 2, 0) / networkSize;
-    
-    setPhases(newPhases);
-    setBeliefEnergy(newEnergy);
-    setInfluenceTracker(newTracker);
-    setCurrentIteration(prev => prev + 1);
-    
-    setHistory(prev => [...prev, { energy: [...newEnergy], phases: [...newPhases] }]);
-    setCurvatureHistory(prev => [...prev, {
-      iteration: currentIteration + 1,
-      totalCurvature,
-      avgEnergy,
-      energyVariance,
-      phaseCoherence: 1 - (new Set(newPhases.map(p => Math.round(p * 10))).size / 10)
-    }]);
-  };
-
   // Animation effect
   useEffect(() => {
     if (isRunning) {
+      const simulationStep = () => {
+        if (currentIteration >= iterations) {
+          setIsRunning(false);
+          return;
+        }
+        
+        // Apply phase slip
+        const newPhases = applyPhaseSlip(phases, beliefEnergy, network.edges, phaseSlipThreshold);
+        
+        // Update belief energy
+        const { energy: newEnergy, tracker: newTracker } = updateBeliefEnergy(
+          beliefEnergy, 
+          newPhases, 
+          network.edges, 
+          influenceTracker
+        );
+        
+        // Calculate system-wide curvature metrics
+        const totalCurvature = network.nodes.reduce((sum, node) => 
+          sum + calculateLocalCurvature(node, newEnergy, newPhases, network.edges), 0
+        );
+        
+        const avgEnergy = newEnergy.reduce((sum, e) => sum + e, 0) / networkSize;
+        const energyVariance = newEnergy.reduce((sum, e) => sum + (e - avgEnergy) ** 2, 0) / networkSize;
+        
+        setPhases(newPhases);
+        setBeliefEnergy(newEnergy);
+        setInfluenceTracker(newTracker);
+        setCurrentIteration(prev => prev + 1);
+        
+        setHistory(prev => [...prev, { energy: [...newEnergy], phases: [...newPhases] }]);
+        setCurvatureHistory(prev => [...prev, {
+          iteration: currentIteration + 1,
+          totalCurvature,
+          avgEnergy,
+          energyVariance,
+          phaseCoherence: 1 - (new Set(newPhases.map(p => Math.round(p * 10))).size / 10)
+        }]);
+      };
+
       const timer = setTimeout(simulationStep, 1000 / simulationSpeed);
       return () => clearTimeout(timer);
     }
-  }, [isRunning, currentIteration, simulationSpeed]);
+  }, [isRunning, currentIteration, simulationSpeed, iterations, phases, beliefEnergy, network.edges, network.nodes, phaseSlipThreshold, influenceTracker, networkSize, applyPhaseSlip, calculateLocalCurvature, updateBeliefEnergy]);
 
   // Calculate current metrics
   const currentMetrics = useMemo(() => {
@@ -249,7 +248,7 @@ const PsionicFieldSimulator = () => {
       highEnergyNodes,
       iteration: currentIteration
     };
-  }, [beliefEnergy, influenceTracker, initiators, currentIteration]);
+  }, [beliefEnergy, influenceTracker, initiators, currentIteration, networkSize]);
 
   // Network visualization data
   const networkVisualization = useMemo(() => {
@@ -273,7 +272,7 @@ const PsionicFieldSimulator = () => {
       isInfluenced: initiators.some(init => influenceTracker[node]?.has(init)),
       neighbors: getNeighbors(node, network.edges).length
     }));
-  }, [network, beliefEnergy, phases, initiators, influenceTracker]);
+  }, [network, beliefEnergy, phases, initiators, influenceTracker, networkSize]);
 
   return (
     <div className="w-full p-6 bg-gradient-to-br from-gray-900 via-purple-900 to-indigo-900 text-white min-h-screen">

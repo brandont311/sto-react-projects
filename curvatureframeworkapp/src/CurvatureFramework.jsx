@@ -21,7 +21,7 @@ const CurvatureFramework = () => {
     return (C * C * h) / (kB * Math.log(2) * thetaDeg);
   };
 
-  const calculateCurvatureRank = (fd, rho, sigmaE) => {
+  const _calculateCurvatureRank = (fd, rho, sigmaE) => {
     return (fd * rho) / (sigmaE || 1);
   };
 
@@ -48,13 +48,13 @@ const CurvatureFramework = () => {
   ];
 
   // Manifold hierarchy
-  const manifolds = [
+  const manifolds = useMemo(() => [
     { name: "Vacuum", ricciCurvature: 0.001, color: "#1f1f1f" },
     { name: "Plasma", ricciCurvature: 0.1, color: "#ff6b35" },
     { name: "Atmosphere", ricciCurvature: 0.5, color: "#87ceeb" },
     { name: "Water", ricciCurvature: 1.2, color: "#4682b4" },
     { name: "Earth", ricciCurvature: 2.5, color: "#8b4513" }
-  ];
+  ], []);
 
   // Animation effect
   useEffect(() => {
@@ -118,7 +118,7 @@ const CurvatureFramework = () => {
     }
     
     return data;
-  }, [theta, manifoldLevel, waveformType, timeStep, showNullZones]);
+  }, [theta, manifoldLevel, waveformType, timeStep, showNullZones, manifolds]);
 
   // Calculate current metrics
   const currentTemp = calculateTemperature(theta);
