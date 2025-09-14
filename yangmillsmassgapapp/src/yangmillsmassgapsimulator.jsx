@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ScatterChart, Scatter, AreaChart, Area } from 'recharts';
 
 const YangMillsMassGapSimulator = () => {
   const [mixingAngle, setMixingAngle] = useState(7.5);
   const [rotationalGradient, setRotationalGradient] = useState(54.0);
   const [criticalTemp, setCriticalTemp] = useState(66.63);
-  const [baseEnergy, setBaseEnergy] = useState(383.997935);
+  const [_baseEnergy, _setBaseEnergy] = useState(383.997935);
   const [gaugeCoupling, setGaugeCoupling] = useState(1.0);
   const [timeEvolution, setTimeEvolution] = useState(0);
   const [viewMode, setViewMode] = useState('mass_gap');
@@ -14,17 +14,17 @@ const YangMillsMassGapSimulator = () => {
 
   // Physical constants
   const hbar = 1.054571817e-34;
-  const kB = 1.380649e-23;
-  const c = 299792458;
-  const phi = (1 + Math.sqrt(5)) / 2;
+  const _kB = 1.380649e-23;
+  const _c = 299792458;
+  const _phi = (1 + Math.sqrt(5)) / 2;
   const naturalMotion = 297531864;
 
   // Energy eigenvalue configurations from your table
-  const eigenvalueConfigs = [
+  const eigenvalueConfigs = useMemo(() => [
     { theta: 7.5, phi: 54, massGap: 0.215 },
     { theta: 15, phi: 108, massGap: 0.212 },
     { theta: 22.5, phi: 162, massGap: 0.210 }
-  ];
+  ], []);
 
   // Animation effect
   useEffect(() => {
@@ -37,7 +37,7 @@ const YangMillsMassGapSimulator = () => {
   }, [isAnimating, animationSpeed]);
 
   // Calculate Yang-Mills Hamiltonian components
-  const calculateYMHamiltonian = (theta, phi, temp, time) => {
+  const calculateYMHamiltonian = useCallback((theta, phi, temp, time) => {
     // Convert angles to radians
     const thetaRad = (theta * Math.PI) / 180;
     const phiRad = (phi * Math.PI) / 180;
@@ -64,10 +64,10 @@ const YangMillsMassGapSimulator = () => {
       mass: massTerm,
       total: classicalEnergy + thetaTerm + phiTerm + massTerm
     };
-  };
+  }, [criticalTemp]);
 
   // Calculate mass gap using STO framework
-  const calculateMassGap = (theta, phi, temp) => {
+  const calculateMassGap = useCallback((theta, phi, temp) => {
     const thetaRad = (theta * Math.PI) / 180;
     const phiRad = (phi * Math.PI) / 180;
     
@@ -87,7 +87,7 @@ const YangMillsMassGapSimulator = () => {
     const massGap = baseMassGap * angularFactor * tempEnhancement * goldenScaling * 1000; // Convert to GeV scale
     
     return Math.abs(massGap);
-  };
+  }, [criticalTemp]);
 
   // Symmetry breaking simulation
   const simulateSymmetryBreaking = (steps = 100) => {
@@ -145,7 +145,7 @@ const YangMillsMassGapSimulator = () => {
     });
     
     return data;
-  }, [criticalTemp, timeEvolution]);
+  }, [criticalTemp, timeEvolution, calculateMassGap, calculateYMHamiltonian]);
 
   // Generate energy spectrum
   const energySpectrum = useMemo(() => {
@@ -168,7 +168,7 @@ const YangMillsMassGapSimulator = () => {
     }
     
     return spectrum;
-  }, [mixingAngle, rotationalGradient, criticalTemp, gaugeCoupling]);
+  }, [mixingAngle, rotationalGradient, criticalTemp, gaugeCoupling, calculateMassGap]);
 
   // Current system metrics
   const currentMetrics = useMemo(() => {
@@ -195,7 +195,7 @@ const YangMillsMassGapSimulator = () => {
       confinement: massGap > 0 ? "Confined" : "Deconfined",
       stability: hamiltonian.total > 0 ? "Stable" : "Unstable"
     };
-  }, [mixingAngle, rotationalGradient, criticalTemp, timeEvolution]);
+  }, [mixingAngle, rotationalGradient, criticalTemp, timeEvolution, calculateMassGap, calculateYMHamiltonian, eigenvalueConfigs]);
 
   return (
     <div className="w-full p-6 bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 text-white min-h-screen">

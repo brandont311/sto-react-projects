@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ScatterChart, Scatter, AreaChart, Area, BarChart, Bar } from 'recharts';
 
 const SAPMCHSimulator = () => {
@@ -17,14 +17,14 @@ const SAPMCHSimulator = () => {
   const h = 6.62607015e-34; // J·s
   const c = 299792458; // m/s
   const NA = 6.02214076e23; // mol^-1
-  const ln2 = Math.log(2);
+  const ln2 = useMemo(() => Math.log(2), []);
 
   // Gas properties
-  const gasProperties = {
+  const gasProperties = useMemo(() => ({
     dry_air: { molarMass: 28.964, name: "Dry Air" },
     water_vapor: { molarMass: 18.01528, name: "Water Vapor" },
     effective: { molarMass: 18.73, name: "Effective Gas (SAPMCH)" }
-  };
+  }), []);
 
   // Critical temperatures and constants
   const massGapTemp = 66.5533701031; // K
@@ -47,7 +47,7 @@ const SAPMCHSimulator = () => {
       energyPerGram,
       totalEnergy: energyPerMole // Assuming 1 mole for comparison
     };
-  }, [gasType, degreesOfFreedom, temperature]);
+  }, [gasType, degreesOfFreedom, temperature, gasProperties]);
 
   // Reverse derivations
   const reverseDerived = useMemo(() => {
@@ -66,7 +66,7 @@ const SAPMCHSimulator = () => {
       avogadroCalculated,
       avogadroError: Math.abs(avogadroCalculated - NA) / NA * 100
     };
-  }, [energyFromPV, temperature, degreesOfFreedom]);
+  }, [energyFromPV, temperature, degreesOfFreedom, gasProperties, ln2]);
 
   // Angular magnitude calculations
   const angularAnalysis = useMemo(() => {
@@ -95,7 +95,7 @@ const SAPMCHSimulator = () => {
       chargeEnergy,
       chargeRatio
     };
-  }, [energyFromPV]);
+  }, [energyFromPV, ln2]);
 
   // Thermal scaling bridge
   const thermalScaling = useMemo(() => {
@@ -129,7 +129,7 @@ const SAPMCHSimulator = () => {
         isOptimal: key === 'effective'
       };
     });
-  }, [temperature, degreesOfFreedom, energyFromPV]);
+  }, [temperature, degreesOfFreedom, energyFromPV, gasProperties]);
 
   // Lorenz system comparison data (simplified)
   const lorenzComparison = useMemo(() => {

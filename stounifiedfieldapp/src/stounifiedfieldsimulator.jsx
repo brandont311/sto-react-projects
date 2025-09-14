@@ -10,7 +10,7 @@ const STOUnifiedFieldSimulator = () => {
   const [mixingAngle, setMixingAngle] = useState(7.5);
   const [rotationalGradient, setRotationalGradient] = useState(54.0);
   const [criticalTemp, setCriticalTemp] = useState(66.63);
-  const [baseEnergy, setBaseEnergy] = useState(383.997935003);
+  const [baseEnergy, _setBaseEnergy] = useState(383.997935003);
   const [coherenceThreshold, setCoherenceThreshold] = useState(0.92);
   const [viewMode, setViewMode] = useState('unified_field');
   const [animationTime, setAnimationTime] = useState(0);
@@ -19,12 +19,12 @@ const STOUnifiedFieldSimulator = () => {
 
   // Physical constants
   const h = 6.62607015e-34;
-  const kB = 1.380649e-23;
+  const _kB = 1.380649e-23;
   const c = 299792458;
   const G = 6.6743e-11;
-  const baseFrequency = 297531864;
+  const _baseFrequency = 297531864;
   const angularStates = 24;
-  const primeLocks = [121, 125, 127];
+  const primeLocks = useMemo(() => [121, 125, 127], []);
 
   // Animation effect
   useEffect(() => {
@@ -66,7 +66,7 @@ const STOUnifiedFieldSimulator = () => {
       phaseAlignments,
       quantizedEnergy: baseEnergy * (correctedState / 360)
     };
-  }, [mixingAngle, baseEnergy]);
+  }, [mixingAngle, baseEnergy, primeLocks]);
 
   // Muon g-2 analysis
   const muonG2Analysis = useMemo(() => {
@@ -112,8 +112,8 @@ const STOUnifiedFieldSimulator = () => {
   // Vacuum energy processing
   const vacuumEnergyAnalysis = useMemo(() => {
     // Extract vacuum fluctuations
-    const baseDensity = baseEnergy / (c * c); // Energy density
-    const quantumCorrection = h * c / Math.pow(39.1111 * 0.0254, 3); // Planck scale
+    const _baseDensity = baseEnergy / (c * c); // Energy density
+    const _quantumCorrection = h * c / Math.pow(39.1111 * 0.0254, 3); // Planck scale
     
     // Map to temporal phases
     const phases = primeLocks.map(lock => (lock * mixingAngle) % 360);
@@ -145,7 +145,7 @@ const STOUnifiedFieldSimulator = () => {
       phaseCoherence: stabilizedPhases.reduce((sum, phase, i) => 
         sum + Math.abs(Math.cos(toRadians(phase - phases[i]))), 0) / phases.length
     };
-  }, [mixingAngle, baseEnergy, animationTime]);
+  }, [mixingAngle, baseEnergy, animationTime, primeLocks]);
 
   // K9 to 24-cell mapping
   const k9CellMapping = useMemo(() => {
@@ -436,8 +436,8 @@ const STOUnifiedFieldSimulator = () => {
           </div>
         </div>
       </div>
-        );
-        {/* Visualization Panel */}
+
+      {/* Visualization Panel */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           {viewMode === 'unified_field' && (
           <React.Fragment>

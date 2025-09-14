@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ScatterChart, Scatter } from 'recharts';
 
 const PsionicFieldSimulator = () => {
@@ -15,7 +15,7 @@ const PsionicFieldSimulator = () => {
   const [curvatureMode, setCurvatureMode] = useState('standard');
 
   // Generate network topology
-  const generateNetwork = (n, p, _seed = 42) => {
+  const generateNetwork = (n, p) => {
     const nodes = Array.from({ length: n }, (_, i) => i);
     const edges = [];
     
@@ -87,7 +87,7 @@ const PsionicFieldSimulator = () => {
   };
 
   // Calculate local curvature for a node
-  const calculateLocalCurvature = (node, energy, phases, edges) => {
+  const calculateLocalCurvature = useCallback((node, energy, phases, edges) => {
     const neighbors = getNeighbors(node, edges);
     if (neighbors.length === 0) return 0;
     
@@ -99,10 +99,10 @@ const PsionicFieldSimulator = () => {
     });
     
     return curvature / neighbors.length;
-  };
+  }, []);
 
   // Apply phase slip dynamics
-  const applyPhaseSlip = (currentPhases, energy, edges, threshold) => {
+  const applyPhaseSlip = useCallback((currentPhases, energy, edges, threshold) => {
     const newPhases = [...currentPhases];
     
     for (let i = 0; i < networkSize; i++) {
@@ -127,10 +127,10 @@ const PsionicFieldSimulator = () => {
     }
     
     return newPhases;
-  };
+  }, [networkSize]);
 
   // Update belief energy with STO curvature dynamics
-  const updateBeliefEnergy = (currentEnergy, currentPhases, edges, tracker) => {
+  const updateBeliefEnergy = useCallback((currentEnergy, currentPhases, edges, tracker) => {
     const newEnergy = [...currentEnergy];
     const newTracker = Object.fromEntries(
       Object.entries(tracker).map(([key, value]) => [key, new Set(value)])
@@ -175,7 +175,7 @@ const PsionicFieldSimulator = () => {
     }
     
     return { energy: newEnergy, tracker: newTracker };
-  };
+  }, [networkSize, dissipationRate, resonanceCoeff, curvatureMode, calculateLocalCurvature]);
 
   // Animation effect
   useEffect(() => {
