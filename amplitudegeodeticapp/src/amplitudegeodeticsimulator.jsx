@@ -93,7 +93,7 @@ const AmplitudeGeodeticSimulator = () => {
       painDescription,
       safetyFactor: Math.max(0, 1 - entropyRatio)
     };
-  }, [frequency, exposureTime, tissueSensitivity]);
+  }, [frequency, exposureTime]);
 
   // Generate geodesic path visualization
   const geodesicPath = useMemo(() => {

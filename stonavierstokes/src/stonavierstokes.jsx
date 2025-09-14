@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ScatterChart, Scatter, AreaChart, Area } from 'recharts';
 
 const NavierStokesSolver = () => {
@@ -18,7 +18,7 @@ const NavierStokesSolver = () => {
   const ENERGY_CONSTANT = 383.997935003;
   const THERMAL_BASE = 319.6;
   const CRITICAL_TEMP = 66.63;
-  const PRIME_LOCKS = [1, 1, 1, 2, 1, 5, 3, 2, 1];
+  const PRIME_LOCKS = useMemo(() => [1, 1, 1, 2, 1, 5, 3, 2, 1], []);
 
   // Simulation state
   const [fluidField, setFluidField] = useState(null);
@@ -33,10 +33,10 @@ const NavierStokesSolver = () => {
       }, 50);
       return () => clearInterval(interval);
     }
-  }, [isSimulating, timeStep, animationSpeed]);
+  }, [isSimulating, timeStep, animationSpeed, updateFluidField]);
 
   // Initialize fluid field
-  const initializeFluidField = () => {
+  const initializeFluidField = useCallback(() => {
     const size = gridResolution;
     const field = {
       u: Array(size).fill().map(() => Array(size).fill(0)),
@@ -62,10 +62,10 @@ const NavierStokesSolver = () => {
     }
 
     return field;
-  };
+  }, [gridResolution]);
 
   // Update fluid field using STO temporal framework
-  const updateFluidField = () => {
+  const updateFluidField = useCallback(() => {
     if (!fluidField) return;
 
     const newField = JSON.parse(JSON.stringify(fluidField));
@@ -156,14 +156,14 @@ const NavierStokesSolver = () => {
       divergence: maxDivergence,
       reynoldsEff: Math.sqrt(totalEnergy) / viscosity
     }]);
-  };
+  }, [fluidField, gridResolution, viscosity, simulationTime, PRIME_LOCKS, temperature, temporalBound, timeStep]);
 
   // Initialize on mount
   useEffect(() => {
     const field = initializeFluidField();
     setFluidField(field);
     setEnergyHistory([]);
-  }, [gridResolution]);
+  }, [gridResolution, initializeFluidField]);
 
   // Calculate theoretical bounds
   const theoreticalBounds = useMemo(() => {
