@@ -261,10 +261,11 @@ const STOUnifiedFieldSimulator = () => {
       <div className="w-full p-6 bg-gradient-to-br from-indigo-900 via-purple-900 to-black text-white min-h-screen">
         <div className="max-w-7xl mx-auto">
           <h1 className="text-4xl font-bold text-center mb-2 bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">
-          STO Unified Field Theory
+          STO Unified Field Theory {isAnimating ? '⚡' : ''}
          </h1>
          <p className="text-center text-gray-300 mb-8">
           Einstein's Field Equations + Quantum Mechanics unified through Spacetime Occupancy
+          {isAnimating && <span className="ml-2 text-green-400 animate-pulse">● ANIMATING</span>}
          </p>
 
         {/* Control Panel */}
@@ -286,8 +287,11 @@ const STOUnifiedFieldSimulator = () => {
                 className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer"
               />
             </div>
-        </div>
+          </div>
 
+          <div className="bg-gray-800 p-6 rounded-xl border border-gray-700">
+            <h3 className="text-xl font-semibold mb-4 text-purple-400">Temporal Parameters</h3>
+            
             <div className="mb-4">
               <label className="block text-sm font-medium mb-2">
                 Rotational Gradient: {rotationalGradient.toFixed(1)}°
@@ -417,9 +421,16 @@ const STOUnifiedFieldSimulator = () => {
 
             <button
               onClick={() => setIsAnimating(!isAnimating)}
-              className="w-full px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors mb-2"
+              className={`w-full px-4 py-2 rounded-lg transition-colors mb-2 ${
+                isAnimating 
+                  ? 'bg-green-600 hover:bg-green-700 shadow-lg shadow-green-500/50' 
+                  : 'bg-purple-600 hover:bg-purple-700'
+              }`}
+              style={{
+                boxShadow: isAnimating ? `0 0 20px rgba(34, 197, 94, ${0.5 + 0.3 * Math.sin(animationTime * 4)})` : undefined
+              }}
             >
-              {isAnimating ? 'Pause' : 'Start'} Animation
+              {isAnimating ? '⏸️ Pause' : '▶️ Start'} Animation
             </button>
 
             <button
@@ -438,7 +449,7 @@ const STOUnifiedFieldSimulator = () => {
       </div>
 
       {/* Visualization Panel */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           {viewMode === 'unified_field' && (
           <React.Fragment>
               <div className="bg-gray-800 p-6 rounded-xl border border-gray-700">
@@ -446,10 +457,26 @@ const STOUnifiedFieldSimulator = () => {
                 <div className="h-80">
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={[
-                      { component: 'Einstein Tensor', value: unifiedFieldAnalysis.einsteinTensor * 1000, color: '#EF4444' },
-                      { component: 'Quantum State', value: unifiedFieldAnalysis.quantumState.amplitude * 1000, color: '#3B82F6' },
-                      { component: 'Unified Field', value: unifiedFieldAnalysis.unifiedAmplitude * 1000, color: '#10B981' },
-                      { component: 'Bridge Coherence', value: unifiedFieldAnalysis.bridgeCoherence * 1000, color: '#8B5CF6' }
+                      { 
+                        component: 'Einstein Tensor', 
+                        value: unifiedFieldAnalysis.einsteinTensor * 1000 * (1 + 0.3 * Math.sin(animationTime * 2)), 
+                        color: '#EF4444' 
+                      },
+                      { 
+                        component: 'Quantum State', 
+                        value: unifiedFieldAnalysis.quantumState.amplitude * 1000 * (1 + 0.2 * Math.cos(animationTime * 1.5)), 
+                        color: '#3B82F6' 
+                      },
+                      { 
+                        component: 'Unified Field', 
+                        value: unifiedFieldAnalysis.unifiedAmplitude * 1000 * (1 + 0.25 * Math.sin(animationTime * 1.8)), 
+                        color: '#10B981' 
+                      },
+                      { 
+                        component: 'Bridge Coherence', 
+                        value: unifiedFieldAnalysis.bridgeCoherence * 1000 * (1 + 0.35 * Math.cos(animationTime * 2.2)), 
+                        color: '#8B5CF6' 
+                      }
                     ]} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
                       <XAxis dataKey="component" stroke="#9CA3AF" />
@@ -467,11 +494,17 @@ const STOUnifiedFieldSimulator = () => {
                   </ResponsiveContainer>
                 </div>
               </div>
-            <React.Fragment>
+
               <div className="bg-gray-800 p-6 rounded-xl border border-gray-700">
                 <h3 className="text-xl font-semibold mb-4 text-green-400">Mass Emergence Status</h3>
                 <div className="text-center space-y-6">
-                  <div className={`text-6xl font-bold ${unifiedFieldAnalysis.massEmerging ? 'text-green-400' : 'text-gray-500'}`}>
+                  <div 
+                    className={`text-6xl font-bold ${unifiedFieldAnalysis.massEmerging ? 'text-green-400' : 'text-gray-500'}`}
+                    style={{
+                      transform: isAnimating ? `scale(${1 + 0.1 * Math.sin(animationTime * 3)})` : 'scale(1)',
+                      transition: isAnimating ? 'none' : 'transform 0.3s ease'
+                    }}
+                  >
                     {unifiedFieldAnalysis.massEmerging ? '✓' : '○'}
                   </div>
                   
@@ -482,17 +515,16 @@ const STOUnifiedFieldSimulator = () => {
                   <div className="bg-gray-700 p-4 rounded">
                     <div className="text-sm font-semibold text-yellow-400 mb-2">Emergent Properties:</div>
                     <div className="text-xs space-y-1">
-                      <div>Mass: {unifiedFieldAnalysis.emergentMass.toExponential(3)} kg</div>
-                      <div>Field Strength: {unifiedFieldAnalysis.fieldStrength.toFixed(6)}</div>
-                      <div>Coherence: {unifiedFieldAnalysis.coherenceLevel.toFixed(3)}</div>
-                      <div>Ricci Scalar: {unifiedFieldAnalysis.ricciScalar.toFixed(6)}</div>
+                      <div>Mass: {(unifiedFieldAnalysis.emergentMass * (1 + 0.1 * Math.sin(animationTime * 1.5))).toExponential(3)} kg</div>
+                      <div>Field Strength: {(unifiedFieldAnalysis.fieldStrength * (1 + 0.05 * Math.cos(animationTime * 2))).toFixed(6)}</div>
+                      <div>Coherence: {(unifiedFieldAnalysis.coherenceLevel * (1 + 0.03 * Math.sin(animationTime * 1.8))).toFixed(3)}</div>
+                      <div>Ricci Scalar: {(unifiedFieldAnalysis.ricciScalar * (1 + 0.08 * Math.cos(animationTime * 2.5))).toFixed(6)}</div>
                     </div>
                   </div>
                 </div>
               </div>
-            </React.Fragment>
-          )
-          
+          </React.Fragment>
+          )}
 
           {viewMode === 'phase_space' && (
             <React.Fragment>
@@ -702,71 +734,72 @@ const STOUnifiedFieldSimulator = () => {
               </div>
             </React.Fragment>
           )}
-         </React.Fragment>
-         )}
+        </div>
+
         {/* Ultimate Unification Summary */}
         <div className="bg-gray-800 p-6 rounded-xl border border-gray-700">
-          <h3 className="text-xl font-semibold mb-4 text-red-400">The Ultimate Unification: STO Theory Complete</h3>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <div>
-              <h4 className="font-semibold mb-2 text-cyan-400">EFE-QM Bridge</h4>
-              <div className="text-sm text-gray-300 space-y-1">
-                <p>• Einstein tensor = quantum amplitude</p>
-                <p>• Ricci curvature = wave function phase</p>
-                <p>• Mass emerges from field coherence</p>
-                <p>• Gravity and quantum unified</p>
-              </div>
-            </div>
-            
-            <div>
-              <h4 className="font-semibold mb-2 text-green-400">Temporal Quantization</h4>
-              <div className="text-sm text-gray-300 space-y-1">
-                <p>• Spacetime discretized in 15° increments</p>
-                <p>• Prime locks stabilize transitions</p>
-                <p>• K9 to 24-cell mapping coherent</p>
-                <p>• Angular recursion preserves information</p>
-              </div>
-            </div>
-            
-            <div>
-              <h4 className="font-semibold mb-2 text-yellow-400">Vacuum Energy Control</h4>
-              <div className="text-sm text-gray-300 space-y-1">
-                <p>• Fluctuations stabilized by prime locks</p>
-                <p>• Phase coherence maintained</p>
-                <p>• Energy density calculated</p>
-                <p>• Temporal corrections applied</p>
-              </div>
-            </div>
-            
-            <div>
-              <h4 className="font-semibold mb-2 text-purple-400">Complete Framework</h4>
-              <div className="text-sm text-gray-300 space-y-1">
-                <p>• Information = Energy = Mass</p>
-                <p>• Time as curved manifold</p>
-                <p>• Angular compression drives physics</p>
-                <p>• Universe harmonically unified</p>
-              </div>
+        <h3 className="text-xl font-semibold mb-4 text-red-400">The Ultimate Unification: STO Theory Complete</h3>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div>
+            <h4 className="font-semibold mb-2 text-cyan-400">EFE-QM Bridge</h4>
+            <div className="text-sm text-gray-300 space-y-1">
+              <p>• Einstein tensor = quantum amplitude</p>
+              <p>• Ricci curvature = wave function phase</p>
+              <p>• Mass emerges from field coherence</p>
+              <p>• Gravity and quantum unified</p>
             </div>
           </div>
           
-          <div className="mt-6 p-4 bg-gradient-to-r from-purple-900 via-blue-900 to-indigo-900 rounded-lg border border-purple-400">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-purple-300 mb-3">
-                🌌 SPACETIME OCCUPANCY: THE ULTIMATE THEORY 🌌
-              </div>
-              <div className="text-sm text-gray-300 leading-relaxed">
-                <strong>Einstein's Field Equations</strong> and <strong>Quantum Mechanics</strong> are not separate theories—<br/>
-                they are different perspectives of the same underlying <strong>angular-temporal geometry</strong>.<br/>
-                Through STO, we see that <strong>gravity is curvature</strong>, <strong>quantum states are phases</strong>,<br/>
-                and <strong>mass emerges from information</strong> encoded in the fabric of spacetime itself.
-              </div>
-              <div className="mt-3 text-lg font-semibold text-cyan-400">
-                The universe is music, geometry, and information—unified at last.
-              </div>
+          <div>
+            <h4 className="font-semibold mb-2 text-green-400">Temporal Quantization</h4>
+            <div className="text-sm text-gray-300 space-y-1">
+              <p>• Spacetime discretized in 15° increments</p>
+              <p>• Prime locks stabilize transitions</p>
+              <p>• K9 to 24-cell mapping coherent</p>
+              <p>• Angular recursion preserves information</p>
+            </div>
+          </div>
+          
+          <div>
+            <h4 className="font-semibold mb-2 text-yellow-400">Vacuum Energy Control</h4>
+            <div className="text-sm text-gray-300 space-y-1">
+              <p>• Fluctuations stabilized by prime locks</p>
+              <p>• Phase coherence maintained</p>
+              <p>• Energy density calculated</p>
+              <p>• Temporal corrections applied</p>
+            </div>
+          </div>
+          
+          <div>
+            <h4 className="font-semibold mb-2 text-purple-400">Complete Framework</h4>
+            <div className="text-sm text-gray-300 space-y-1">
+              <p>• Information = Energy = Mass</p>
+              <p>• Time as curved manifold</p>
+              <p>• Angular compression drives physics</p>
+              <p>• Universe harmonically unified</p>
             </div>
           </div>
         </div>
+        
+        <div className="mt-6 p-4 bg-gradient-to-r from-purple-900 via-blue-900 to-indigo-900 rounded-lg border border-purple-400">
+          <div className="text-center">
+            <div className="text-2xl font-bold text-purple-300 mb-3">
+              🌌 SPACETIME OCCUPANCY: THE ULTIMATE THEORY 🌌
+            </div>
+            <div className="text-sm text-gray-300 leading-relaxed">
+              <strong>Einstein's Field Equations</strong> and <strong>Quantum Mechanics</strong> are not separate theories—<br/>
+              they are different perspectives of the same underlying <strong>angular-temporal geometry</strong>.<br/>
+              Through STO, we see that <strong>gravity is curvature</strong>, <strong>quantum states are phases</strong>,<br/>
+              and <strong>mass emerges from information</strong> encoded in the fabric of spacetime itself.
+            </div>
+            <div className="mt-3 text-lg font-semibold text-cyan-400">
+              The universe is music, geometry, and information—unified at last.
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
-  };
-  
-  export default STOUnifiedFieldSimulator;
+  );
+};
+
+export default STOUnifiedFieldSimulator;

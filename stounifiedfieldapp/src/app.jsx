@@ -1,7 +1,7 @@
-import Stounifiedfieldsimulator from './stounifiedfieldsimulator';
+import STOUnifiedFieldSimulator from './stounifiedfieldsimulator'
 
 function App() {
-  return <Stounifiedfieldsimulator />;
+  return <STOUnifiedFieldSimulator />;
 }
 
 export default App;
