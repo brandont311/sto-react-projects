@@ -1,375 +1,192 @@
-import { useState, useMemo } from 'react';
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
-import './App.css';
+import { useState } from "react";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
-export default function App() {
-  const [qspCapacity, setQspCapacity] = useState(50); // TB per unit
-  const [qspUnits, setQspUnits] = useState(100);
-  const [serverCapacity, setServerCapacity] = useState(10); // TB per server
-  const [serverRacks, setServerRacks] = useState(50);
-  const [totalInternetZB, setTotalInternetZB] = useState(64); // Zettabytes
+// QsP Showcase - Single-file React component (Tailwind CSS assumed)
+// Default export component. Drop into a React app (Vite/CRA) and install 'recharts'.
 
-  // Calculations
-  const calculations = useMemo(() => {
-    const qspTotalTB = qspCapacity * qspUnits;
-    const serverTotalTB = serverCapacity * serverRacks * 12; // 12 servers per rack
-    const totalInternetTB = totalInternetZB * 1000 * 1000; // ZB to TB
-    const qspUnitsToHoldInternet = Math.ceil(totalInternetTB / qspCapacity);
-    
-    const chartData = [
-      {
-        name: 'Storage Capacity (TB)',
-        'QsP Units': qspTotalTB,
-        'Server Farm': serverTotalTB,
-        'All Internet': Math.min(totalInternetTB, 100000) // Cap for visualization
-      }
-    ];
+export default function QsPShowcase() {
+  // Inputs (defaults chosen for demonstration; user can edit live)
+  const [qspDataTB, setQspDataTB] = useState<number>(10_000); // TB per QsP unit (example)
+  const [qspEnergykWh, setQspEnergykWh] = useState<number>(50); // kWh stored per QsP unit
+  const [qspVolumeM3, setQspVolumeM3] = useState<number>(0.02); // cubic meters (shoebox-sized)
 
-    const pieData = [
-      { name: 'QsP Storage', value: qspTotalTB, color: '#10b981' },
-      { name: 'Server Farm', value: serverTotalTB, color: '#2563eb' },
-    ];
+  const [serverRacks, setServerRacks] = useState<number>(200); // number of racks in a comparable small farm
+  const [tbPerRack, setTbPerRack] = useState<number>(100); // TB per rack
+  const [rackFootprintM2, setRackFootprintM2] = useState<number>(1.5); // footprint per rack (m^2)
+  const [rackEnergykWh] = useState<number>(20); // UPS energy capacity per rack (kWh)
 
-    const efficiencyData = Array.from({ length: 10 }, (_, i) => ({
-      units: (i + 1) * 20,
-      qspCost: (i + 1) * 20 * 1000, // $1000 per unit
-      serverCost: (i + 1) * 20 * 50 * 2000, // 50 servers per 20 units equivalent, $2000 each
-      qspPower: (i + 1) * 20 * 100, // 100W per unit
-      serverPower: (i + 1) * 20 * 50 * 500 // 500W per server
-    }));
+  const [totalInternetZB, setTotalInternetZB] = useState<number>(120); // zettabytes (user-editable estimate)
 
-    return {
-      qspTotalTB,
-      serverTotalTB,
-      totalInternetTB,
-      qspUnitsToHoldInternet,
-      chartData,
-      pieData,
-      efficiencyData
-    };
-  }, [qspCapacity, qspUnits, serverCapacity, serverRacks, totalInternetZB]);
+  // Conversions
+  const totalInternetTB = totalInternetZB * 1e9; // 1 ZB = 1e9 TB
 
-  const formatLarge = (num: number): string => {
-    if (num >= 1e12) return (num / 1e12).toFixed(1) + 'T';
-    if (num >= 1e9) return (num / 1e9).toFixed(1) + 'B';
-    if (num >= 1e6) return (num / 1e6).toFixed(1) + 'M';
-    if (num >= 1e3) return (num / 1e3).toFixed(1) + 'K';
-    return num.toLocaleString();
-  };
+  // Derived metrics
+  const qspUnitsToHoldInternet = Math.max(1, totalInternetTB / qspDataTB);
+  const serverFarmTotalTB = serverRacks * tbPerRack;
+  const qspTotalVolumeM3 = qspUnitsToHoldInternet * qspVolumeM3;
+  const serverFarmFootprintM2 = serverRacks * rackFootprintM2;
+
+  // Chart data comparing: single QsP, small server farm (the whole farm as configured), and 'All Internet'
+  const chartData = [
+    { name: "Data (TB)", "QsP Unit": qspDataTB, "Server Farm (total)": serverFarmTotalTB, "All Internet (TB)": totalInternetTB },
+    { name: "Energy (kWh)", "QsP Unit": qspEnergykWh, "Server Farm (total)": serverRacks * rackEnergykWh, "All Internet (TB)": 0 },
+    { name: "Volume (m3)", "QsP Unit": qspVolumeM3, "Server Farm (total)": serverRacks * 0.5, "All Internet (TB)": 0 },
+  ];
+
+  // Readable format helper
+  function formatLarge(num: number) {
+    if (num >= 1e9) return (num / 1e9).toFixed(2) + " B";
+    if (num >= 1e6) return (num / 1e6).toFixed(2) + " M";
+    if (num >= 1e3) return (num / 1e3).toFixed(2) + " K";
+    return num.toString();
+  }
 
   return (
-    <div className="app">
-      <div className="container">
+    <div className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-800 text-slate-100 p-8">
+      <div className="max-w-6xl mx-auto">
         {/* Header */}
-        <header className="header">
-          <div>
-            <h1 className="title">Hybrid Data Storage Systems</h1>
-            <p className="subtitle">QsP Quantum Storage vs Traditional Server Infrastructure • Interactive Comparison Demo</p>
-          </div>
-          <div className="badge">
-            Next-Gen Storage
-          </div>
+        <header className="mb-8 text-center">
+          <h1 className="text-4xl font-extrabold">QsP Hybrid Data + Energy Showcase</h1>
+          <p className="mt-2 text-slate-300 max-w-2xl mx-auto">
+            Interactive demo comparing a single QsP unit vs a small server farm and the scale required to hold all
+            (user-estimated) internet data. All values are editable – this is an illustrative model.
+          </p>
         </header>
 
-        {/* Controls Section */}
-        <section className="controls-section">
-          <h2 className="section-title">Configuration Controls</h2>
-          <div className="controls-grid">
-            <div className="control-group">
-              <h3>QsP Quantum Storage</h3>
-              <div className="control-panel">
-                <div className="control-item">
-                  <label>Capacity per Unit (TB)</label>
-                  <input
-                    type="range"
-                    min="10"
-                    max="200"
-                    value={qspCapacity}
-                    onChange={(e) => setQspCapacity(parseInt(e.target.value))}
-                    className="slider"
-                    aria-label="QsP capacity per unit in terabytes"
-                  />
-                  <span className="value">{qspCapacity} TB</span>
-                </div>
-                <div className="control-item">
-                  <label>Number of Units</label>
-                  <input
-                    type="range"
-                    min="10"
-                    max="500"
-                    value={qspUnits}
-                    onChange={(e) => setQspUnits(parseInt(e.target.value))}
-                    className="slider"
-                    aria-label="Number of QsP units"
-                  />
-                  <span className="value">{qspUnits} units</span>
-                </div>
-              </div>
-            </div>
+        {/* Controls */}
+        <section className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+          <div className="bg-slate-900 p-4 rounded-lg border border-slate-700">
+            <h3 className="font-bold mb-3">QsP Unit (editable)</h3>
+            <label className="block text-sm text-slate-300">Data capacity (TB)</label>
+            <input type="number" className="w-full p-2 rounded mt-1 bg-slate-800 border border-slate-700" placeholder="TB per QsP unit" title="Data capacity (TB)" value={qspDataTB} onChange={e => setQspDataTB(Number(e.target.value) || 0)} />
 
-            <div className="control-group">
-              <h3>Traditional Server Farm</h3>
-              <div className="control-panel">
-                <div className="control-item">
-                  <label>Storage per Server (TB)</label>
-                  <input
-                    type="range"
-                    min="1"
-                    max="50"
-                    value={serverCapacity}
-                    onChange={(e) => setServerCapacity(parseInt(e.target.value))}
-                    className="slider"
-                    aria-label="Storage capacity per server in terabytes"
-                  />
-                  <span className="value">{serverCapacity} TB</span>
-                </div>
-                <div className="control-item">
-                  <label>Number of Racks</label>
-                  <input
-                    type="range"
-                    min="10"
-                    max="200"
-                    value={serverRacks}
-                    onChange={(e) => setServerRacks(parseInt(e.target.value))}
-                    className="slider"
-                    aria-label="Number of server racks"
-                  />
-                  <span className="value">{serverRacks} racks</span>
-                </div>
-              </div>
-            </div>
+            <label className="block text-sm text-slate-300 mt-3">Energy capacity (kWh)</label>
+            <input type="number" className="w-full p-2 rounded mt-1 bg-slate-800 border border-slate-700" placeholder="kWh per QsP unit" title="Energy capacity (kWh)" value={qspEnergykWh} onChange={e => setQspEnergykWh(Number(e.target.value) || 0)} />
 
-            <div className="control-group">
-              <h3>Internet Scale Reference</h3>
-              <div className="control-panel">
-                <div className="control-item">
-                  <label>Total Internet Data (ZB)</label>
-                  <input
-                    type="range"
-                    min="50"
-                    max="150"
-                    value={totalInternetZB}
-                    onChange={(e) => setTotalInternetZB(parseInt(e.target.value))}
-                    className="slider"
-                    aria-label="Total internet data in zettabytes"
-                  />
-                  <span className="value">{totalInternetZB} ZB</span>
-                </div>
-              </div>
-            </div>
+            <label className="block text-sm text-slate-300 mt-3">Unit volume (m³)</label>
+            <input type="number" step="0.01" className="w-full p-2 rounded mt-1 bg-slate-800 border border-slate-700" placeholder="m³ per QsP unit" title="Unit volume (m³)" value={qspVolumeM3} onChange={e => setQspVolumeM3(Number(e.target.value) || 0)} />
+          </div>
+
+          <div className="bg-slate-900 p-4 rounded-lg border border-slate-700">
+            <h3 className="font-bold mb-3">Comparable Server Farm (editable)</h3>
+            <label className="block text-sm text-slate-300">Number of racks</label>
+            <input type="number" className="w-full p-2 rounded mt-1 bg-slate-800 border border-slate-700" placeholder="Number of racks" title="Number of racks" value={serverRacks} onChange={e => setServerRacks(Number(e.target.value) || 0)} />
+
+            <label className="block text-sm text-slate-300 mt-3">TB per rack</label>
+            <input type="number" className="w-full p-2 rounded mt-1 bg-slate-800 border border-slate-700" placeholder="TB per rack" title="TB per rack" value={tbPerRack} onChange={e => setTbPerRack(Number(e.target.value) || 0)} />
+
+            <label className="block text-sm text-slate-300 mt-3">Footprint per rack (m²)</label>
+            <input type="number" step="0.1" className="w-full p-2 rounded mt-1 bg-slate-800 border border-slate-700" placeholder="m² per rack" title="Footprint per rack (m²)" value={rackFootprintM2} onChange={e => setRackFootprintM2(Number(e.target.value) || 0)} />
           </div>
         </section>
 
-        {/* Visual Comparison */}
-        <section className="visualization-section">
-          <h2 className="section-title">Storage Infrastructure Visualization</h2>
-          <div className="comparison-grid">
-            {/* QsP Units Visualization */}
-            <div className="storage-viz">
-              <h3>QsP Quantum Units</h3>
-              <div className="qsp-container">
-                <div className="units-grid">
-                  {Array.from({ length: Math.min(qspUnits, 24) }).map((_, i) => (
-                    <div key={i} className="qsp-unit">
-                      <div className="unit-glow"></div>
-                      <span>QsP</span>
-                    </div>
-                  ))}
-                </div>
-                <div className="total-info">
-                  <div className="metric">
-                    <span className="metric-value">{formatLarge(calculations.qspTotalTB)}</span>
-                    <span className="metric-label">TB Total</span>
-                  </div>
-                  <div className="metric">
-                    <span className="metric-value">{qspUnits}</span>
-                    <span className="metric-label">Units</span>
-                  </div>
+        {/* Internet size input */}
+        <section className="bg-slate-900 p-4 rounded-lg border border-slate-700 mb-8">
+          <h3 className="font-bold mb-2">Total Internet Data (estimate)</h3>
+          <div className="flex gap-3 items-center">
+            <input type="number" step="1" className="w-40 p-2 rounded bg-slate-800 border border-slate-700" placeholder="ZB" title="Total Internet Data (ZB)" value={totalInternetZB} onChange={e => setTotalInternetZB(Number(e.target.value) || 0)} />
+            <div className="text-slate-300">Zettabytes (ZB). Default = 120 ZB (editable).</div>
+          </div>
+          <p className="mt-2 text-sm text-amber-200">Note: This demo uses a user-editable estimate for total internet data. Adjust to explore different scenarios.</p>
+        </section>
+
+        {/* Results summary */}
+        <section className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+          <div className="bg-gradient-to-br from-emerald-700/20 to-slate-900 p-4 rounded-lg border border-emerald-600">
+            <h4 className="font-semibold">QsP Units required to hold Internet</h4>
+            <div className="text-3xl font-bold mt-3">{formatLarge(Math.ceil(qspUnitsToHoldInternet))}</div>
+            <div className="text-sm text-slate-200 mt-2">(Based on {qspDataTB.toLocaleString()} TB per QsP unit)</div>
+          </div>
+
+          <div className="bg-gradient-to-br from-indigo-700/15 to-slate-900 p-4 rounded-lg border border-indigo-600">
+            <h4 className="font-semibold">Server farm equivalents required</h4>
+            <div className="text-3xl font-bold mt-3">{formatLarge(Math.ceil(totalInternetTB / serverFarmTotalTB))} farms</div>
+            <div className="text-sm text-slate-200 mt-2">(Based on {serverRacks} racks × {tbPerRack} TB)</div>
+          </div>
+
+          <div className="bg-slate-900 p-4 rounded-lg border border-slate-700">
+            <h4 className="font-semibold">Estimated footprint comparison</h4>
+            <div className="mt-3">
+              <div className="text-lg">Server farm footprint (m²): <strong>{serverFarmFootprintM2.toLocaleString()}</strong></div>
+              <div className="text-lg mt-2">QsP total volume (m³): <strong>{qspTotalVolumeM3.toLocaleString()}</strong></div>
+            </div>
+            <p className="text-sm text-amber-200 mt-2">This is a conceptual area/volume comparison for visualization only.</p>
+          </div>
+        </section>
+
+        {/* Visual comparison area */}
+        <section className="mb-8">
+          <h3 className="text-xl font-bold mb-3">Visual Comparison</h3>
+          <div className="bg-slate-900 p-6 rounded-lg border border-slate-700 flex flex-col lg:flex-row gap-6">
+            {/* QsP small box */}
+            <div className="flex-1 flex flex-col items-center">
+              <div className="text-slate-300 mb-2">Single QsP Unit (scale sketch)</div>
+              <div className="w-40 h-28 bg-gradient-to-br from-emerald-600/40 to-emerald-700/10 border border-emerald-500 rounded-md flex items-center justify-center">
+                <div className="text-center">
+                  <div className="font-semibold">QsP</div>
+                  <div className="text-sm">{qspDataTB.toLocaleString()} TB</div>
                 </div>
               </div>
+
+              <div className="mt-4 text-slate-300">Unit volume: {qspVolumeM3} m³</div>
             </div>
 
-            {/* Server Farm Visualization */}
-            <div className="storage-viz">
-              <h3>Traditional Server Farm</h3>
-              <div className="server-container">
-                <div className="racks-grid">
+            {/* Server farm sketch */}
+            <div className="flex-1 flex flex-col items-center">
+              <div className="text-slate-300 mb-2">Comparable Server Farm (configured)</div>
+              <div className="w-full max-w-md bg-gradient-to-br from-slate-700/40 to-slate-800 p-6 rounded-lg border border-slate-600">
+                <div className="grid grid-cols-3 gap-3">
                   {Array.from({ length: Math.min(serverRacks, 12) }).map((_, i) => (
-                    <div key={i} className="server-rack">
-                      <div className="rack-servers">
-                        {Array.from({ length: 12 }).map((_, j) => (
-                          <div key={j} className="server-unit"></div>
-                        ))}
-                      </div>
-                      <span>Rack {i + 1}</span>
+                    <div key={i} className="h-20 bg-slate-900 rounded border border-slate-700 flex items-center justify-center text-sm">
+                      Rack
                     </div>
                   ))}
                 </div>
-                <div className="total-info">
-                  <div className="metric">
-                    <span className="metric-value">{formatLarge(calculations.serverTotalTB)}</span>
-                    <span className="metric-label">TB Total</span>
-                  </div>
-                  <div className="metric">
-                    <span className="metric-value">{serverRacks * 12}</span>
-                    <span className="metric-label">Servers</span>
-                  </div>
-                </div>
+                <div className="mt-3 text-sm text-slate-300">({serverRacks} racks total)</div>
               </div>
             </div>
 
-            {/* Internet Scale Reference */}
-            <div className="storage-viz">
-              <h3>Internet Scale (Reference)</h3>
-              <div className="internet-viz">
-                <div className="internet-globe">
-                  <div className="globe-inner">
-                    <span className="internet-size">{totalInternetZB} ZB</span>
-                    <span className="internet-label">All Internet Data</span>
-                  </div>
-                </div>
-                <div className="scale-info">
-                  <p>QsP units needed: <strong>{formatLarge(calculations.qspUnitsToHoldInternet)}</strong></p>
-                  <p>= {formatLarge(calculations.totalInternetTB)} TB</p>
+            {/* All Internet box */}
+            <div className="flex-1 flex flex-col items-center">
+              <div className="text-slate-300 mb-2">All Internet (for scale)</div>
+              <div className="w-full max-w-xs h-40 bg-amber-700/10 border border-amber-500 rounded-md flex items-center justify-center">
+                <div className="text-center">
+                  <div className="font-semibold">{totalInternetZB} ZB</div>
+                  <div className="text-sm">= {formatLarge(totalInternetTB)} TB</div>
                 </div>
               </div>
+              <div className="mt-3 text-sm text-amber-200">Units required: {formatLarge(Math.ceil(qspUnitsToHoldInternet))}</div>
             </div>
           </div>
         </section>
 
-        {/* Charts Section */}
-        <section className="charts-section">
-          <h2 className="section-title">Quantitative Analysis</h2>
-          
-          <div className="charts-grid">
-            {/* Storage Comparison Bar Chart */}
-            <div className="chart-container">
-              <h3>Storage Capacity Comparison</h3>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={calculations.chartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                  <XAxis dataKey="name" tick={{ fill: '#9ca3af' }} />
-                  <YAxis tick={{ fill: '#9ca3af' }} />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: '#1f2937', 
-                      border: '1px solid #374151',
-                      borderRadius: '8px'
-                    }}
-                  />
-                  <Legend />
-                  <Bar dataKey="QsP Units" fill="#10b981" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="Server Farm" fill="#2563eb" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-
-            {/* Distribution Pie Chart */}
-            <div className="chart-container">
-              <h3>Storage Distribution</h3>
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
-                    data={calculations.pieData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={100}
-                    dataKey="value"
-                  >
-                    {calculations.pieData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip formatter={(value) => formatLarge(value as number) + ' TB'} />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-
-            {/* Efficiency Analysis */}
-            <div className="chart-container chart-wide">
-              <h3>Cost & Power Efficiency Analysis</h3>
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={calculations.efficiencyData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                  <XAxis dataKey="units" tick={{ fill: '#9ca3af' }} label={{ value: 'Storage Units', position: 'insideBottom', offset: -5 }} />
-                  <YAxis tick={{ fill: '#9ca3af' }} />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: '#1f2937', 
-                      border: '1px solid #374151',
-                      borderRadius: '8px'
-                    }}
-                  />
-                  <Legend />
-                  <Line type="monotone" dataKey="qspCost" stroke="#10b981" strokeWidth={3} name="QsP Cost ($)" />
-                  <Line type="monotone" dataKey="serverCost" stroke="#2563eb" strokeWidth={3} name="Server Cost ($)" />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
+        {/* Chart */}
+        <section className="mb-12">
+          <h3 className="text-xl font-bold mb-3">Quantitative Comparison Chart</h3>
+          <div className="bg-slate-900 p-4 rounded border border-slate-700 h-[360px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={chartData} layout="vertical">
+                <XAxis type="number" />
+                <YAxis dataKey="name" type="category" />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="QsP Unit" stackId="a" fill="#10b981" />
+                <Bar dataKey="Server Farm (total)" stackId="a" fill="#2563eb" />
+                <Bar dataKey="All Internet (TB)" stackId="a" fill="#f59e0b" />
+              </BarChart>
+            </ResponsiveContainer>
           </div>
         </section>
 
-        {/* Key Metrics */}
-        <section className="metrics-section">
-          <h2 className="section-title">Key Performance Metrics</h2>
-          <div className="metrics-grid">
-            <div className="metric-card">
-              <div className="metric-icon">🚀</div>
-              <div className="metric-content">
-                <h4>Storage Density</h4>
-                <div className="metric-comparison">
-                  <div>QsP: <strong>{qspCapacity} TB/unit</strong></div>
-                  <div>Server: <strong>{serverCapacity} TB/server</strong></div>
-                </div>
-              </div>
-            </div>
-
-            <div className="metric-card">
-              <div className="metric-icon">⚡</div>
-              <div className="metric-content">
-                <h4>Power Efficiency</h4>
-                <div className="metric-comparison">
-                  <div>QsP: <strong>100W/unit</strong></div>
-                  <div>Server: <strong>500W/server</strong></div>
-                </div>
-              </div>
-            </div>
-
-            <div className="metric-card">
-              <div className="metric-icon">💰</div>
-              <div className="metric-content">
-                <h4>Cost Efficiency</h4>
-                <div className="metric-comparison">
-                  <div>QsP: <strong>$1K/unit</strong></div>
-                  <div>Server: <strong>$2K/server</strong></div>
-                </div>
-              </div>
-            </div>
-
-            <div className="metric-card">
-              <div className="metric-icon">🌐</div>
-              <div className="metric-content">
-                <h4>Internet Scale</h4>
-                <div className="metric-value">
-                  <strong>{formatLarge(calculations.qspUnitsToHoldInternet)}</strong>
-                  <span>QsP units needed</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Footer */}
-        <footer className="footer">
-          <div className="disclaimer">
-            <strong>Disclaimer:</strong> This interactive demo is conceptual and intended for visualization and
-            comparison. The user-entered numbers drive the calculations. Claims such as "holding all internet data"
-            are illustrative – adjust the inputs to explore different scenarios and consult measured specs for
-            engineering decisions.
-          </div>
-          <div className="footer-info">
-            © {new Date().getFullYear()} Hybrid Data Storage Demo • React 18 • TypeScript • Recharts
+        {/* Footer / disclaimer */}
+        <footer className="text-center text-sm text-slate-400 py-6">
+          <div className="max-w-3xl mx-auto">
+            <p>
+              <strong>Disclaimer:</strong> This interactive demo is conceptual and intended for visualization and
+              comparison. The user-entered numbers drive the calculations. Claims such as "holding all internet data"
+              are illustrative – adjust the inputs to explore different scenarios and consult measured specs for
+              engineering decisions.
+            </p>
           </div>
         </footer>
       </div>

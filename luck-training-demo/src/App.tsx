@@ -47,8 +47,8 @@ export default function App(){
 
       <div className="grid">
         <div className="card">
-          <div className="subtitle" style={{marginBottom:8}}>Luck Score Over Time</div>
-          <div style={{width:'100%', height: 320}}>
+          <div className="subtitle subtitle-margin-bottom">Luck Score Over Time</div>
+          <div className="chart-container">
             <ResponsiveContainer>
               <AreaChart data={series}>
                 <defs>
@@ -68,14 +68,14 @@ export default function App(){
         </div>
 
         <div className="card">
-          <div className="subtitle" style={{marginBottom:8}}>Controls</div>
+          <div className="subtitle subtitle-margin-bottom">Controls</div>
           <Controls />
         </div>
       </div>
 
-      <div className="card" style={{marginTop:16}}>
-        <div className="subtitle" style={{marginBottom:8}}>Opportunity vs Insight</div>
-        <div style={{width:'100%', height: 240}}>
+      <div className="card card-margin-top">
+        <div className="subtitle subtitle-margin-bottom-8">Opportunity vs Insight</div>
+        <div className="bar-chart-container">
           <ResponsiveContainer>
             <BarChart data={[{label:'Opportunity', value: metrics.opportunities}, {label:'Insights', value: metrics.insights}]}>
               <CartesianGrid stroke="rgba(255,255,255,.06)"/>
