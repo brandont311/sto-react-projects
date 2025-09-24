@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>QLT Demo Simulation</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 24px; }
+    h1 { margin-top: 0; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+    .card { border: 1px solid #ddd; border-radius: 12px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+    label { display: block; margin-top: 10px; font-size: 14px; }
+    input[type="range"] { width: 100%; }
+    .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+    .btn { padding: 10px 14px; border: 1px solid #333; border-radius: 10px; background: #fff; cursor: pointer; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .stat { font-size: 14px; margin: 4px 0; }
+    .good { color: #0a7d24; font-weight: 600; }
+    .warn { color: #b36b00; font-weight: 600; }
+    .bad  { color: #b00020; font-weight: 600; }
+    canvas { width: 100%; height: 320px; border: 1px dashed #bbb; border-radius: 12px; background: #fafafa; }
+    .legend { font-size: 12px; color: #555; }
+    .log { height: 140px; overflow: auto; background: #0c0c0c; color: #d9ffd9; padding: 8px 12px; border-radius: 8px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; font-size: 12px; }
+    .pill { display:inline-block; padding:2px 8px; border-radius: 999px; border: 1px solid #ccc; margin-left: 6px; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <h1>QLT Visual & Mechanics Demo (Illustrative)</h1>
+  <p class="legend">
+    This interactive simulation illustrates the <strong>phase lock</strong>, <strong>resonance coherence</strong>, and a toy <strong>energy model</strong> for a single transport between two pads.
+    Values and physics are simplified for presentation and do not represent actual performance.
+  </p>
+
+  <div class="grid">
+    <div class="card">
+      <h2>Controls</h2>
+      <label>Payload Mass: <span id="massLabel">10</span> kg</label>
+      <input id="mass" type="range" min="1" max="200" value="10" step="1"/>
+
+      <label>Distance: <span id="distLabel">50</span> m</label>
+      <input id="distance" type="range" min="1" max="2000" value="50" step="1"/>
+
+      <label>Resonance (Z-Factor tuning): <span id="zLabel">0.75</span></label>
+      <input id="z" type="range" min="0.1" max="1.0" value="0.75" step="0.01"/>
+
+      <label>Coherence Target: <span id="cohLabel">0.98</span></label>
+      <input id="coherence" type="range" min="0.70" max="0.999" value="0.98" step="0.001"/>
+
+      <div class="row" style="margin-top:12px">
+        <button class="btn" id="phase">Phase Lock</button>
+        <button class="btn" id="transport" disabled>Transport</button>
+        <button class="btn" id="reset">Reset</button>
+      </div>
+      <div class="legend" style="margin-top:10px">
+        Tips: Set a higher coherence target to reduce energy usage and increase stability. Very low Z or high mass/distance may cause decoherence.
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Status</h2>
+      <div class="stat">Phase Lock: <span id="phaseStatus" class="warn">Not locked</span></div>
+      <div class="stat">Live Coherence: <span id="coherenceLive">—</span></div>
+      <div class="stat">Estimated Energy for Trip: <span id="energy">—</span> kJ <span id="energyBadge" class="pill">—</span></div>
+      <div class="stat">OM Tokens (1 token/kJ): <span id="tokens">—</span></div>
+      <div class="stat">Cycle Time (simulated): <span id="cycle">—</span> s</div>
+      <div class="stat">Outcome: <span id="outcome">—</span></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <h2>Field Visualization</h2>
+    <canvas id="viz" width="900" height="320"></canvas>
+    <div class="legend">Left pad → Right pad. Dotted field rings suggest resonance strength. The orb represents the payload; motion is animated during transport.</div>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <h2>Event Log</h2>
+    <div class="log" id="log"></div>
+  </div>
+
+<script>
+(function() {
+  const el = id => document.getElementById(id);
+
+  const mass = el('mass');
+  const distance = el('distance');
+  const z = el('z');
+  const coherence = el('coherence');
+  const massLabel = el('massLabel');
+  const distLabel = el('distLabel');
+  const zLabel = el('zLabel');
+  const cohLabel = el('cohLabel');
+  const energyEl = el('energy');
+  const tokensEl = el('tokens');
+  const phaseBtn = el('phase');
+  const transportBtn = el('transport');
+  const resetBtn = el('reset');
+  const phaseStatus = el('phaseStatus');
+  const cohLive = el('coherenceLive');
+  const outcome = el('outcome');
+  const cycle = el('cycle');
+  const energyBadge = el('energyBadge');
+  const log = el('log');
+  const canvas = el('viz');
+  const ctx = canvas.getContext('2d');
+
+  let locked = false;
+  let animReq = null;
+  let orbX = 80;
+  let orbY = canvas.height/2;
+  const leftPad = { x: 60, y: canvas.height/2 };
+  const rightPad = { x: canvas.width-60, y: canvas.height/2 };
+
+  function fmt(n, d=2){ return Number(n).toFixed(d); }
+  function ln(msg) {
+    const stamp = new Date().toLocaleTimeString();
+    log.innerHTML = `[${stamp}] ${msg}<br>` + log.innerHTML;
+  }
+
+  function updateLabels() {
+    massLabel.textContent = mass.value;
+    distLabel.textContent = distance.value;
+    zLabel.textContent = fmt(z.value, 2);
+    cohLabel.textContent = coherence.value;
+  }
+
+  function computeCoherenceLive() {
+    const base = Number(coherence.value);
+    const loadFactor = Math.min(0.25, (mass.value * distance.value) / 200000);
+    const resonanceBoost = (z.value - 0.1) * 0.10;
+    const live = Math.max(0.5, Math.min(0.999, base - loadFactor + resonanceBoost));
+    return live;
+  }
+
+  function energyModel() {
+    const baseline = 1.2;
+    const m = Number(mass.value);
+    const d = Number(distance.value);
+    const zf = Number(z.value);
+    const coh = computeCoherenceLive();
+    const factor = (m * Math.sqrt(d)) / (Math.max(0.05, coh*coh) * Math.max(0.1, zf));
+    const kJ = baseline + (factor * 0.04);
+    return { kJ, coh };
+  }
+
+  function badgeForEnergy(kJ){
+    if (kJ < 5) { energyBadge.textContent = "Excellent"; energyBadge.className = "pill good"; }
+    else if (kJ <= 20) { energyBadge.textContent = "Within target"; energyBadge.className = "pill"; }
+    else { energyBadge.textContent = "High usage"; energyBadge.className = "pill bad"; }
+  }
+
+  function drawField() {
+    const w = canvas.width, h = canvas.height;
+    const dpr = window.devicePixelRatio || 1;
+    // scale for HiDPI
+    if (canvas._dpr !== dpr) {
+      canvas._dpr = dpr
+      canvas.width = Math.floor(w * dpr);
+      canvas.height = Math.floor(h * dpr);
+      canvas.style.width = w+"px"; canvas.style.height = h+"px";
+    }
+    const c = canvas.getContext('2d');
+    c.setTransform(dpr,0,0,dpr,0,0);
+    c.clearRect(0,0,w,h);
+
+    // Pads
+    c.fillStyle = "#333";
+    c.beginPath();
+    c.arc(leftPad.x, leftPad.y, 16, 0, Math.PI*2);
+    c.fill();
+    c.beginPath();
+    c.arc(rightPad.x, rightPad.y, 16, 0, Math.PI*2);
+    c.fill();
+
+    // Field rings
+    for (let i=0;i<6;i++){
+      c.beginPath();
+      c.arc(leftPad.x, leftPad.y, 40 + i*22, 0, Math.PI*2);
+      c.setLineDash([4, 6]);
+      c.strokeStyle = "rgba(0,0,0,0.12)";
+      c.stroke();
+      c.setLineDash([]);
+    }
+    for (let i=0;i<6;i++){
+      c.beginPath();
+      c.arc(rightPad.x, rightPad.y, 40 + i*22, 0, Math.PI*2);
+      c.setLineDash([4, 6]);
+      c.strokeStyle = "rgba(0,0,0,0.12)";
+      c.stroke();
+      c.setLineDash([]);
+    }
+
+    // Orb
+    c.beginPath();
+    c.arc(orbX, orbY, 14, 0, Math.PI*2);
+    c.fillStyle = "#0b6dff";
+    c.shadowColor = "rgba(11,109,255,0.45)";
+    c.shadowBlur = 18;
+    c.fill();
+    c.shadowBlur = 0;
+  }
+
+  function refresh() {
+    const { kJ, coh } = energyModel();
+    energyEl.textContent = fmt(kJ, 2);
+    tokensEl.textContent = fmt(kJ, 2);
+    cohLive.textContent = fmt(coh, 3);
+    badgeForEnergy(kJ);
+    drawField();
+  }
+
+  function tryPhaseLock() {
+    const { coh } = energyModel();
+    if (coh >= Number(coherence.value) * 0.99) {
+      locked = true;
+      phaseStatus.textContent = "Locked";
+      phaseStatus.className = "good";
+      transportBtn.disabled = false;
+      ln("Phase lock achieved. System ready.");
+    } else {
+      locked = false;
+      phaseStatus.textContent = "Not locked";
+      phaseStatus.className = "warn";
+      transportBtn.disabled = true;
+      ln("Phase lock failed. Increase coherence or resonance and try again.");
+    }
+    refresh();
+  }
+
+  function animateTransport() {
+    if (!locked) return;
+    const { coh, kJ } = energyModel();
+    const duration = Math.max(0.6, 2.0 - (coh*1.2));
+    const totalMs = duration * 1000;
+    const start = performance.now();
+    ln(`Transport initiated. Estimated energy ${fmt(kJ,2)} kJ.`);
+    outcome.textContent = "In progress...";
+
+    function step(now) {
+      const t = (now - start)/totalMs;
+      if (t >= 1) {
+        orbX = rightPad.x;
+        drawField();
+        if (Math.random() < Math.max(0, 0.12 - (coh - 0.85))) {
+          outcome.textContent = "Decoherence event — auto-realigning";
+          ln("Decoherence detected. Auto realignment protocol engaged.");
+          setTimeout(() => {
+            orbX = leftPad.x; drawField();
+            outcome.textContent = "Returned to origin (safe mode)";
+            ln("Payload returned to origin pad safely.");
+          }, 450);
+        } else {
+          outcome.textContent = "Arrived";
+          ln("Payload arrived at destination. Ledger updated, tokens debited.");
+        }
+        cycle.textContent = fmt(duration,2);
+        return;
+      }
+      const ease = t<0.5 ? (2*t*t) : (1 - Math.pow(-2*t+2, 2)/2);
+      orbX = leftPad.x + (rightPad.x-leftPad.x)*ease;
+      drawField();
+      animReq = requestAnimationFrame(step);
+    }
+    cancelAnimationFrame(animReq);
+    animReq = requestAnimationFrame(step);
+  }
+
+  function reset() {
+    locked = false;
+    phaseStatus.textContent = "Not locked";
+    phaseStatus.className = "warn";
+    transportBtn.disabled = true;
+    orbX = leftPad.x;
+    outcome.textContent = "—";
+    cycle.textContent = "—";
+    ln("System reset. Adjust parameters and phase lock to begin.");
+    refresh();
+  }
+
+  [mass, distance, z, coherence].forEach(elm => {
+    elm.addEventListener('input', () => { updateLabels(); refresh(); });
+  });
+  phaseBtn.addEventListener('click', tryPhaseLock);
+  transportBtn.addEventListener('click', animateTransport);
+  resetBtn.addEventListener('click', reset);
+
+  updateLabels();
+  ln("Loaded demo. Set controls, then click Phase Lock → Transport.");
+  refresh();
+  drawField();
+})();
+</script>
+</body>
+</html>

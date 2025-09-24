@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>QLT Live Dashboard</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  :root{--bg:#0f1221;--card:#171a2e;--txt:#e9ecff;--mut:#a9b0d6;--good:#36d399;--warn:#f0ad4e;--bad:#ff6b6b}
+  body{margin:0;background:var(--bg);color:var(--txt);font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif}
+  header{padding:16px 20px;font-weight:700}
+  .wrap{padding:16px;display:grid;gap:16px;grid-template-columns:2fr 1fr}
+  .card{background:var(--card);border-radius:16px;padding:16px;box-shadow:0 10px 25px rgba(0,0,0,.35)}
+  .row{display:flex;gap:8px;flex-wrap:wrap}
+  button{border:0;background:#4a5df5;color:#fff;border-radius:12px;padding:10px 14px;cursor:pointer}
+  button.secondary{background:#2c335a}
+  .pill{display:inline-block;padding:6px 10px;border-radius:999px;font-size:12px}
+  .good{background:rgba(54,211,153,.15);color:var(--good)}
+  .warn{background:rgba(240,173,78,.15);color:var(--warn)}
+  .bad{background:rgba(255,107,107,.15);color:var(--bad)}
+  .log{height:220px;overflow:auto;background:#0b0e1d;border-radius:12px;padding:10px;font-family:ui-monospace,Consolas,Menlo,monospace;font-size:12px}
+  canvas{width:100%;height:180px;background:#0b0e1d;border-radius:12px}
+  label{font-size:12px;color:var(--mut)}
+</style>
+</head>
+<body>
+<header>QLT Live Dashboard</header>
+<div class="wrap">
+  <div class="card">
+    <div class="row" style="align-items:center;margin-bottom:8px">
+      <button id="connect">Connect</button>
+      <button id="disconnect" class="secondary" disabled>Disconnect</button>
+      <button id="export" class="secondary" disabled>Export CSV</button>
+      <span id="status" class="pill warn">Disconnected</span>
+    </div>
+    <label>Gap (mm)</label>
+    <canvas id="cGap" width="900" height="180"></canvas>
+    <label>Temperature (°C)</label>
+    <canvas id="cTemp" width="900" height="180"></canvas>
+    <label>Hall (raw)</label>
+    <canvas id="cHall" width="900" height="180"></canvas>
+  </div>
+  <div class="card">
+    <div class="row" style="margin-bottom:8px">
+      <div>
+        <div style="font-size:12px;color:var(--mut)">Latest</div>
+        <div id="latest" style="font-weight:700">—</div>
+      </div>
+    </div>
+    <div class="log" id="log"></div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const ui = id => document.getElementById(id);
+  const log = m => { const t=new Date().toLocaleTimeString(); ui('log').innerHTML = `[${t}] ${m}<br>` + ui('log').innerHTML; };
+
+  const N=600;
+  const buf = { t:[], gap:[], temp:[], hall:[] };
+  function pushSample(t,gap,temp,hall){
+    ['t','gap','temp','hall'].forEach(k => { if(buf[k].length>=N) buf[k].shift(); });
+    buf.t.push(t); buf.gap.push(gap); buf.temp.push(temp); buf.hall.push(hall);
+    ui('latest').textContent = `gap=${gap} mm, temp=${temp} °C, hall=${hall}`;
+    drawAll();
+  }
+
+  function plot(canvas, data, color='#9bb6ff', yLabel=''){
+    const ctx=canvas.getContext('2d'), W=canvas.width, H=canvas.height;
+    ctx.clearRect(0,0,W,H);
+    ctx.fillStyle='#0b0e1d'; ctx.fillRect(0,0,W,H);
+    let min=Infinity,max=-Infinity;
+    data.forEach(v=>{ if(v!==null && v!==undefined){ if(v<min)min=v; if(v>max)max=v; }});
+    if(!isFinite(min)||!isFinite(max)){ min=0; max=1; }
+    if(min===max){ min-=1; max+=1; }
+    const pad=10, X = (i)=> pad + (i/(N-1))*(W-2*pad);
+    const Y = (v)=> H-pad - ((v-min)/(max-min))*(H-2*pad);
+    const steps=4; ctx.strokeStyle='rgba(255,255,255,0.1)'; ctx.lineWidth=1; ctx.setLineDash([4,4]);
+    for(let i=0;i<=steps;i++){ const y=pad+i*(H-2*pad)/steps; ctx.beginPath(); ctx.moveTo(pad,y); ctx.lineTo(W-pad,y); ctx.stroke(); }
+    ctx.setLineDash([]);
+    ctx.strokeStyle=color; ctx.lineWidth=2; ctx.beginPath();
+    data.forEach((v,i)=>{ if(v==null) return; const x=X(i), y=Y(v); if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y); }); ctx.stroke();
+    ctx.fillStyle='rgba(255,255,255,0.6)'; ctx.font='12px system-ui';
+    ctx.fillText(`${yLabel} min=${min.toFixed(2)} max=${max.toFixed(2)}`, pad, 14);
+  }
+  function drawAll(){
+    plot(ui('cGap'),  padArray(buf.gap,N), '#9bb6ff','gap(mm)');
+    plot(ui('cTemp'), padArray(buf.temp,N), '#36d399','temp(°C)');
+    plot(ui('cHall'), padArray(buf.hall,N), '#f0ad4e','hall(raw)');
+  }
+  function padArray(a,n){ const out = new Array(n).fill(null); const start = Math.max(0,n - a.length); for(let i=0;i<a.length;i++){ out[start+i]=a[i]; } return out; }
+
+  let port, reader, keepReading=false;
+  async function connect(){
+    try {
+      port = await navigator.serial.requestPort();
+      await port.open({ baudRate: 115200 });
+      ui('status').textContent='Connected'; ui('status').className='pill good';
+      ui('disconnect').disabled=false; ui('export').disabled=false;
+      readLoop();
+      log('Serial connected.');
+    } catch (e){ log('Connect error: '+e.message); }
+  }
+  async function disconnect(){
+    try {
+      keepReading=false;
+      if(reader){ try{ await reader.cancel(); }catch(_){} }
+      if(port){ await port.close(); }
+      ui('status').textContent='Disconnected'; ui('status').className='pill warn';
+      ui('disconnect').disabled=true; ui('export').disabled=true;
+      log('Serial disconnected.');
+    } catch(e){ log('Disconnect error: '+e.message); }
+  }
+  async function readLoop(){
+    keepReading=true;
+    const decoder = new TextDecoderStream();
+    const readableStreamClosed = port.readable.pipeTo(decoder.writable);
+    const inputStream = decoder.readable;
+    reader = inputStream.getReader();
+    let bufStr='';
+    while(keepReading){
+      const { value, done } = await reader.read();
+      if(done) break;
+      bufStr += value;
+      let idx;
+      while((idx = bufStr.indexOf('\n')) >= 0){
+        const line = bufStr.slice(0, idx).trim();
+        bufStr = bufStr.slice(idx+1);
+        if(!line) continue;
+        try {
+          const j = JSON.parse(line);
+          const gap = Number(j.gap_mm);
+          const temp = Number(j.temp_C);
+          const hall = Number(j.hall_raw);
+          pushSample(j.t||0, gap, temp, hall);
+        } catch(e){}
+      }
+    }
+  }
+
+  function exportCSV(){
+    let csv='t,gap_mm,temp_C,hall_raw\n';
+    for(let i=0;i<buf.t.length;i++){
+      csv += `${buf.t[i]||''},${buf.gap[i]||''},${buf.temp[i]||''},${buf.hall[i]||''}\n`;
+    }
+    const blob = new Blob([csv], {type:'text/csv'});
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='qlt_live_data.csv'; a.click();
+  }
+
+  ui('connect').onclick = () => {
+    if(!('serial' in navigator)){ alert('Web Serial not supported. Use Chrome/Edge desktop.'); return; }
+    connect();
+  };
+  ui('disconnect').onclick = disconnect;
+  ui('export').onclick = exportCSV;
+
+  drawAll();
+})();
+</script>
+</body>
+</html>

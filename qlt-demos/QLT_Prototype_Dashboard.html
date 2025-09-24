@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>QLT Prototype Dashboard (Mock)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  :root { --bg:#0f1221; --card:#171a2e; --text:#e9ecff; --muted:#a9b0d6; --good:#36d399; --warn:#f0ad4e; --bad:#ff6b6b; }
+  body { margin:0; font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif; background:var(--bg); color:var(--text); }
+  header { padding:18px 22px; font-weight:700; letter-spacing:.3px; }
+  .grid { display:grid; grid-template-columns: 2fr 1fr; gap:16px; padding:16px; }
+  .card { background:var(--card); border-radius:16px; padding:16px; box-shadow:0 10px 25px rgba(0,0,0,.35); }
+  h2 { margin:0 0 12px 0; font-size:18px; }
+  label { font-size:13px; color:var(--muted); display:block; margin:8px 0 4px; }
+  input, select { width:100%; padding:10px 12px; border-radius:12px; border:1px solid #2a2f4b; background:#0f1221; color:var(--text); }
+  .row { display:flex; gap:10px; flex-wrap:wrap; }
+  button { border:0; padding:10px 14px; border-radius:12px; cursor:pointer; background:#2c335a; color:var(--text); }
+  button.primary { background:#4a5df5; }
+  button:disabled { opacity:.5; cursor:not-allowed; }
+  .status { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+  .pill { display:inline-block; padding:6px 10px; border-radius:999px; font-size:12px; }
+  .good { background:rgba(54,211,153,.15); color:var(--good); }
+  .warn { background:rgba(240,173,78,.15); color:var(--warn); }
+  .bad  { background:rgba(255,107,107,.15); color:var(--bad); }
+  .log { height:220px; overflow:auto; font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; font-size:12px; padding:10px; background:#0b0e1d; border-radius:12px; }
+  .grid3 { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+  .muted { color:var(--muted); }
+</style>
+</head>
+<body>
+<header>QLT Prototype Dashboard (Mock)</header>
+<div class="grid">
+  <div class="card">
+    <h2>Mission</h2>
+    <div class="row">
+      <div style="flex:1">
+        <label>Destination Node</label>
+        <input id="dest" value="HOME-02 → CITY-HUB-17">
+      </div>
+      <div>
+        <label>Payload (kg)</label>
+        <input id="mass" type="number" min="0" value="12">
+      </div>
+      <div>
+        <label>Coherence Target</label>
+        <input id="coh" type="number" min="0.70" max="0.999" step="0.001" value="0.980">
+      </div>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <button id="connect">Connect</button>
+      <button id="selftest">Self-Test</button>
+      <button id="phaselock" disabled>Phase Lock</button>
+      <button id="transport" class="primary" disabled>Transport</button>
+      <button id="abort" disabled>Abort</button>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <span id="conn" class="pill warn">Disconnected</span>
+      <span id="health" class="pill warn">Unknown</span>
+      <span id="lock" class="pill warn">Not Locked</span>
+      <span id="status" class="pill">Idle</span>
+    </div>
+    <div class="grid3" style="margin-top:12px">
+      <div>
+        <div class="muted">Est. Energy</div>
+        <div id="energy" style="font-weight:700">— kJ</div>
+      </div>
+      <div>
+        <div class="muted">Token Fee</div>
+        <div id="fee" style="font-weight:700">— OM</div>
+      </div>
+      <div>
+        <div class="muted">Cycle Time</div>
+        <div id="cycle" style="font-weight:700">— s</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Event Log</h2>
+    <div id="log" class="log"></div>
+    <div class="row" style="margin-top:8px">
+      <button id="clear">Clear Log</button>
+      <a href="QLT_Demo_Simulation.html" target="_blank"><button>Open Visual Simulation</button></a>
+    </div>
+  </div>
+</div>
+
+<div class="grid" style="grid-template-columns:1fr; padding-top:0;">
+  <div class="card">
+    <h2>System Health</h2>
+    <div class="status">
+      <div>Controller: <span id="ctl" class="pill warn">—</span></div>
+      <div>Chamber: <span id="ch" class="pill warn">—</span></div>
+      <div>EMI Shielding: <span id="emi" class="pill warn">—</span></div>
+      <div>Comms: <span id="comms" class="pill warn">—</span></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const $ = id => document.getElementById(id);
+  const log = (m) => { const t = new Date().toLocaleTimeString(); $('log').innerHTML = `[${t}] ${m}<br>` + $('log').innerHTML; };
+
+  const state = {
+    connected:false, healthy:false, locked:false, transporting:false
+  };
+
+  function estimate() {
+    const m = Math.max(0, Number($('mass').value)||0);
+    const coh = Math.min(0.999, Math.max(0.7, Number($('coh').value)||0.98));
+    const kJ = (1.2 + (m*0.8)/(coh*coh)).toFixed(2);
+    const fee = kJ; // 1 token/kJ (illustrative)
+    const cyc = Math.max(0.6, 2.0 - coh*1.2).toFixed(2);
+    $('energy').textContent = `${kJ} kJ`;
+    $('fee').textContent = `${fee} OM`;
+    $('cycle').textContent = `${cyc} s`;
+  }
+
+  function setPill(id, txt, cls){ const el=$(id); el.textContent=txt; el.className=`pill ${cls||''}`; }
+
+  $('connect').onclick = () => {
+    state.connected = true;
+    setPill('conn','Connected','good'); log('Controller connected.');
+    setPill('status','Ready','good');
+  };
+
+  $('selftest').onclick = () => {
+    if(!state.connected){ log('Connect first.'); return; }
+    setPill('status','Self-testing…','warn');
+    log('Running self-test (controller, chamber, EMI, comms)…');
+    setTimeout(()=>{
+      state.healthy = true;
+      setPill('health','Healthy','good');
+      setPill('ctl','OK','good');
+      setPill('ch','OK','good');
+      setPill('emi','OK','good');
+      setPill('comms','OK','good');
+      $('phaselock').disabled = false;
+      setPill('status','Standby','');
+      estimate();
+      log('Self-test passed.');
+    }, 700);
+  };
+
+  $('phaselock').onclick = () => {
+    if(!state.healthy){ log('Run self-test first.'); return; }
+    setPill('status','Phase locking…','warn');
+    log('Attempting phase lock…');
+    setTimeout(()=>{
+      state.locked = true;
+      setPill('lock','Locked','good');
+      $('transport').disabled = false;
+      setPill('status','Locked','good');
+      log('Phase lock achieved.');
+    }, 600);
+  };
+
+  $('transport').onclick = () => {
+    if(!state.locked){ log('Need phase lock.'); return; }
+    if(state.transporting) return;
+    state.transporting = true;
+    setPill('status','Transporting…','warn');
+    $('abort').disabled = false;
+    log(`Transport initiated to ${$('dest').value}.`);
+    estimate();
+
+    const coh = Math.min(0.999, Math.max(0.7, Number($('coh').value)||0.98));
+    const dur = Math.max(600, 2000 - coh*1200);
+
+    setTimeout(()=>{
+      if(Math.random()<0.10){
+        log('Minor decoherence detected — auto realign engaged.');
+        setPill('status','Auto-realigning…','warn');
+        setTimeout(()=>{
+          state.transporting=false;
+          setPill('status','Returned (safe mode)','bad');
+          $('abort').disabled = true;
+          log('Payload returned to origin pad safely. Ledger updated.');
+        }, 700);
+      } else {
+        state.transporting=false;
+        setPill('status','Arrived','good');
+        $('abort').disabled = true;
+        log('Payload arrived. Ledger + token debit recorded.');
+      }
+    }, dur);
+  };
+
+  $('abort').onclick = () => {
+    if(!state.transporting) return;
+    state.transporting=false;
+    setPill('status','Aborted','bad');
+    $('abort').disabled = true;
+    log('Transport aborted by operator. System safe.');
+  };
+
+  $('clear').onclick = () => $('log').innerHTML = '';
+
+  $('mass').addEventListener('input', estimate);
+  $('coh').addEventListener('input', estimate);
+  estimate();
+})();
+</script>
+</body>
+</html>
